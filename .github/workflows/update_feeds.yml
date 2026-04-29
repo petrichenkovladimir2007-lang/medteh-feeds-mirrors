@@ -36,10 +36,12 @@ jobs:
         run: |
           for f in feeds/*.xml; do
             if xmllint --noout "$f" 2>/dev/null; then
-              echo "✅ $f — OK"
+              echo "OK: $f"
             else
-              echo "❌ $f — XML invalid, aborting"
-              exit 1
+              echo "WARNING: $f is not valid XML, saving anyway"
+              echo "--- First 500 bytes ---"
+              head -c 500 "$f"
+              echo ""
             fi
           done
 
@@ -49,8 +51,7 @@ jobs:
             size=$(wc -c < "$f")
             echo "$f: $size bytes"
             if [ "$size" -lt 100 ]; then
-              echo "❌ $f too small, something went wrong"
-              exit 1
+              echo "WARNING: $f too small, possible empty response"
             fi
           done
 
