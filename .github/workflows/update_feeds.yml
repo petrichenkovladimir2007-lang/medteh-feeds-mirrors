@@ -1,0 +1,63 @@
+name: Update Feeds Mirror
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Щодня о 03:00 UTC (05:00 Kyiv)
+  workflow_dispatch:      # Запуск вручну через кнопку
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download feeds
+        run: |
+          mkdir -p feeds
+
+          curl -L --max-time 60 --retry 3 \
+            -H "User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1)" \
+            "https://medteh.in.ua/index.php?route=extension/feed/remarketing_feed&language=ru-ru" \
+            -o feeds/products_ru.xml
+
+          curl -L --max-time 60 --retry 3 \
+            -H "User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1)" \
+            "https://medteh.in.ua/index.php?route=extension/feed/remarketing_feed" \
+            -o feeds/products_ua.xml
+
+          curl -L --max-time 60 --retry 3 \
+            -H "User-Agent: Mozilla/5.0 (compatible; Googlebot/2.1)" \
+            "https://medteh.in.ua/reviews_feed.xml" \
+            -o feeds/reviews.xml
+
+      - name: Validate XML files
+        run: |
+          for f in feeds/*.xml; do
+            if xmllint --noout "$f" 2>/dev/null; then
+              echo "✅ $f — OK"
+            else
+              echo "❌ $f — XML invalid, aborting"
+              exit 1
+            fi
+          done
+
+      - name: Check file sizes
+        run: |
+          for f in feeds/*.xml; do
+            size=$(wc -c < "$f")
+            echo "$f: $size bytes"
+            if [ "$size" -lt 100 ]; then
+              echo "❌ $f too small, something went wrong"
+              exit 1
+            fi
+          done
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add feeds/
+          git diff --staged --quiet || git commit -m "Update feeds $(date -u '+%Y-%m-%d %H:%M UTC')"
+          git push
