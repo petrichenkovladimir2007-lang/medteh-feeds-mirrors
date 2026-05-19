@@ -32,6 +32,15 @@ jobs:
             "https://medteh.in.ua/reviews_feed.xml" \
             -o feeds/reviews.xml
 
+      - name: Strip injected script tags
+        run: |
+          for f in feeds/*.xml; do
+            # Видалити будь-які <script .../>  або <script ...></script> теги
+            sed -i 's/<script[^>]*\/>//g' "$f"
+            sed -i 's/<script[^>]*>.*<\/script>//g' "$f"
+            echo "Cleaned: $f"
+          done
+
       - name: Validate XML files
         run: |
           for f in feeds/*.xml; do
